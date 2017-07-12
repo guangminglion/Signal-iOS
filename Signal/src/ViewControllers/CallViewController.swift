@@ -341,13 +341,21 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
         let dismissAction = UIAlertAction(title:  CommonStrings.dismissActionText, style: .cancel, handler: nil)
         actionSheetController.addAction(dismissAction)
 
-//        for route in self.callUIAdapater.audioService.availableRoutes {
-
-//    }
+        for audioSource in self.callUIAdapter.audioService.availableOutputs {
+            // TODO add image
+            let routeAudioAction = UIAlertAction(title: audioSource.name, style: .default) { _ in
+                self.updateAudioOutput(audioSource: audioSource)
+            }
+            actionSheetController.addAction(routeAudioAction)
+        }
 
         self.present(actionSheetController, animated: true)
     }
 
+    func updateAudioOutput(audioSource: AudioSource) {
+        Logger.info("\(TAG) in \(#function) with audioSource: \(audioSource)")
+    }
+        
     func setButtonSelectedImage(button: UIButton, imageName: String) {
         let image = UIImage(named:imageName)
         assert(image != nil)

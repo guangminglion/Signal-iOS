@@ -7,6 +7,18 @@ import AVFoundation
 
 public let CallAudioServiceSessionChanged = Notification.Name("CallAudioServiceSessionChanged")
 
+struct AudioSource {
+    let name: String
+    let image: UIImage
+    let isCurrentRoute: Bool
+    
+    init(name: String, image: UIImage, isCurrentRoute: Bool) {
+        self.name = name
+        self.image = image
+        self.isCurrentRoute = isCurrentRoute
+    }
+}
+
 @objc class CallAudioService: NSObject, CallObserver {
 
     private let TAG = "[CallAudioService]"
@@ -310,9 +322,13 @@ public let CallAudioServiceSessionChanged = Notification.Name("CallAudioServiceS
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
     }
 
-    // TODO move this to session?
+    // MARK - AudioSession MGM
+    // TODO move this to CallAudioSession?
+    
     var hasAlternateAudioRoutes: Bool {
-        guard let availableInputs = AVAudioSession.sharedInstance().availableInputs else {
+        let session = AVAudioSession.sharedInstance()
+
+        guard let availableInputs = session.availableInputs else {
             // I'm not sure when this would happen.
             owsFail("No available inputs or inputs not ready")
             return false
@@ -326,6 +342,24 @@ public let CallAudioServiceSessionChanged = Notification.Name("CallAudioServiceS
         }
 
         return false
+    }
+    
+    var availableOutputs: [AudioSource] {
+        let session = AVAudioSession.sharedInstance()
+        // guard let availableOutputs = session.outputDataSources else {
+        guard let availableOutputs = session.availableInputs else {
+            // I'm not sure when this would happen.
+            owsFail("No available inputs or inputs not ready")
+            return []
+        }
+        
+        Logger.info("\(TAG) in \(#function) availableOutputs: \(availableOutputs)")
+        return availableOutputs.map { output in
+            // TODO get proper image
+            // TODO set isCurrentRoute correctly
+//            return AudioSource(name: output.dataSourceName, image:#imageLiteral(resourceName: "button_phone_white"), isCurrentRoute: false)
+            return AudioSource(name: output.portName, image:#imageLiteral(resourceName: "button_phone_white"), isCurrentRoute: false)
+        }
     }
 
     private func setAudioSession(category: String,
