@@ -42,6 +42,7 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
 
     var hangUpButton: UIButton!
     var speakerPhoneButton: UIButton!
+    var soundRouteButton: UIButton!
     var audioModeMuteButton: UIButton!
     var audioModeVideoButton: UIButton!
     var videoModeMuteButton: UIButton!
@@ -156,7 +157,7 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
         // Subscribe for future call updates
         call.addObserverAndSyncState(observer: self)
 
-        Environment.getCurrent().callService.addObserverAndSyncState(observer:self)
+        Environment.getCurrent().callService.addObserverAndSyncState(observer: self)
     }
 
     // MARK: - Create Views
@@ -289,6 +290,11 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
 //                                                action:#selector(didPressTextMessage))
         speakerPhoneButton = createButton(imageName:"audio-call-speaker-inactive",
                                           action:#selector(didPressSpeakerphone))
+
+        // TODO new button icon
+        soundRouteButton = createButton(imageName:"audio_play_white_40",
+                                        action:#selector(didPressSoundRoute))
+
         hangUpButton = createButton(imageName:"hangup-active-wide",
                                     action:#selector(didPressHangup))
         audioModeMuteButton = createButton(imageName:"audio-call-mute-inactive",
@@ -306,10 +312,25 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
         setButtonSelectedImage(button: videoModeVideoButton, imageName: "video-video-selected")
         setButtonSelectedImage(button: speakerPhoneButton, imageName: "audio-call-speaker-active")
 
+        createOngoignCallView()
+    }
+
+    func createOngoignCallView() {
+        let soundRouteOrSpeakerphoneButton: UIButton = self.callUIAdapter.audioService.hasAlternateAudioRoutes ? soundRouteButton : speakerPhoneButton
+
         ongoingCallView = createContainerForCallControls(controlGroups : [
-            [audioModeMuteButton, speakerPhoneButton, audioModeVideoButton ],
+            [audioModeMuteButton, soundRouteOrSpeakerphoneButton, audioModeVideoButton ],
             [videoModeMuteButton, hangUpButton, videoModeVideoButton ]
-            ])
+        ])
+    }
+
+    func handleAvailableAudioRoutesChanged() {
+        AssertIsOnMainThread()
+        createOngoignCallView()
+    }
+
+    func didPressSoundRoute(sender button: UIButton) {
+        Logger.info("\(TAG) in \(#function)")
     }
 
     func setButtonSelectedImage(button: UIButton, imageName: String) {

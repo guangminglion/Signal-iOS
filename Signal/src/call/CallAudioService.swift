@@ -308,6 +308,23 @@ import AVFoundation
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
     }
 
+    // TODO move this to session?
+    var hasAlternateAudioRoutes: Bool {
+        guard let availableInputs = AVAudioSession.sharedInstance().availableInputs else {
+            // I'm not sure when this would happen.
+            owsFail("No available inputs or inputs not ready")
+            return false
+        }
+
+        for input in availableInputs {
+            if input.portType == AVAudioSessionPortBluetoothHFP {
+                return true
+            }
+        }
+
+        return false
+    }
+
     private func setAudioSession(category: String,
                                  mode: String? = nil,
                                  options: AVAudioSessionCategoryOptions = AVAudioSessionCategoryOptions(rawValue: 0)) {
