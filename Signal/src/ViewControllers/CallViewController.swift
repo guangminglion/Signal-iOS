@@ -22,6 +22,7 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
     var thread: TSContactThread!
     var call: SignalCall!
     var hasDismissed = false
+    var hasAlternateAudioRoutes = false
 
     // MARK: Views
 
@@ -108,6 +109,11 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
                                                selector:#selector(didBecomeActive),
                                                name:NSNotification.Name.UIApplicationDidBecomeActive,
                                                object:nil)
+
+        NotificationCenter.default.addObserver(forName: CallAudioServiceSessionChanged, object: nil, queue: nil) { _ in
+            self.didChangeAudioSession()
+        }
+
     }
 
     deinit {
@@ -312,11 +318,12 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
         setButtonSelectedImage(button: videoModeVideoButton, imageName: "video-video-selected")
         setButtonSelectedImage(button: speakerPhoneButton, imageName: "audio-call-speaker-active")
 
-        createOngoignCallView()
+        createOngoingCallView()
     }
 
-    func createOngoignCallView() {
-        let soundRouteOrSpeakerphoneButton: UIButton = self.callUIAdapter.audioService.hasAlternateAudioRoutes ? soundRouteButton : speakerPhoneButton
+    func createOngoingCallView() {
+
+        let soundRouteOrSpeakerphoneButton: UIButton = self.hasAlternateAudioRoutes ? soundRouteButton : speakerPhoneButton
 
         ongoingCallView = createContainerForCallControls(controlGroups : [
             [audioModeMuteButton, soundRouteOrSpeakerphoneButton, audioModeVideoButton ],
@@ -324,9 +331,18 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
         ])
     }
 
-    func handleAvailableAudioRoutesChanged() {
+    func didChangeAudioSession() {
         AssertIsOnMainThread()
-        createOngoignCallView()
+
+        let newHasAlternateAudioRoutes = callUIAdapter.audioService.hasAlternateAudioRoutes
+
+        guard newHasAlternateAudioRoutes != self.hasAlternateAudioRoutes else {
+            // no change
+            return
+        }
+
+        self.hasAlternateAudioRoutes = newHasAlternateAudioRoutes
+        createOngoingCallView()
     }
 
     func didPressSoundRoute(sender button: UIButton) {
@@ -674,6 +690,9 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
         audioModeVideoButton.isSelected = call.hasLocalVideo
         videoModeVideoButton.isSelected = call.hasLocalVideo
         speakerPhoneButton.isSelected = call.isSpeakerphoneEnabled
+
+        speakerPhoneButton.isHidden = self.hasAlternateAudioRoutes
+        soundRouteButton.isHidden = !self.hasAlternateAudioRoutes
 
         // Show Incoming vs. Ongoing call controls
         let isRinging = callState == .localRinging

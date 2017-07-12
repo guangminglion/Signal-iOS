@@ -5,6 +5,8 @@
 import Foundation
 import AVFoundation
 
+public let CallAudioServiceSessionChanged = Notification.Name("CallAudioServiceSessionChanged")
+
 @objc class CallAudioService: NSObject, CallObserver {
 
     private let TAG = "[CallAudioService]"
@@ -316,6 +318,7 @@ import AVFoundation
             return false
         }
 
+        Logger.info("\(TAG) in \(#function) availableInputs: \(availableInputs)")
         for input in availableInputs {
             if input.portType == AVAudioSessionPortBluetoothHFP {
                 return true
@@ -330,6 +333,7 @@ import AVFoundation
                                  options: AVAudioSessionCategoryOptions = AVAudioSessionCategoryOptions(rawValue: 0)) {
 
         let session = AVAudioSession.sharedInstance()
+        var audioSessionChanged = false
         do {
             if #available(iOS 10.0, *), let mode = mode {
                 let oldCategory = session.category
@@ -339,6 +343,8 @@ import AVFoundation
                 guard oldCategory != category || oldMode != mode || oldOptions != options else {
                     return
                 }
+
+                audioSessionChanged = true
 
                 if oldCategory != category {
                     Logger.debug("\(self.TAG) audio session changed category: \(oldCategory) -> \(category) ")
@@ -359,6 +365,8 @@ import AVFoundation
                     return
                 }
 
+                audioSessionChanged = true
+
                 if oldCategory != category {
                     Logger.debug("\(self.TAG) audio session changed category: \(oldCategory) -> \(category) ")
                 }
@@ -371,6 +379,10 @@ import AVFoundation
         } catch {
             let message = "\(self.TAG) in \(#function) failed to set category: \(category) mode: \(String(describing: mode)), options: \(options) with error: \(error)"
             owsFail(message)
+        }
+
+        if audioSessionChanged {
+            NotificationCenter.default.post(name: CallAudioServiceSessionChanged, object: nil)
         }
     }
 }
