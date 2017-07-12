@@ -22,7 +22,6 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
     var thread: TSContactThread!
     var call: SignalCall!
     var hasDismissed = false
-    var hasAlternateAudioRoutes = false
 
     // MARK: Views
 
@@ -42,7 +41,7 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
     var ongoingCallView: UIView!
 
     var hangUpButton: UIButton!
-    var speakerPhoneButton: UIButton!
+    var audioRouteButton: UIButton!
     var soundRouteButton: UIButton!
     var audioModeMuteButton: UIButton!
     var audioModeVideoButton: UIButton!
@@ -87,6 +86,16 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
     }
     var settingsNagView: UIView!
     var settingsNagDescriptionLabel: UILabel!
+
+    // MARK: Audio Routing
+
+    var hasAlternateAudioRoutes = false {
+        didSet {
+            if oldValue != hasAlternateAudioRoutes {
+                updateCallUI(callState: call.state)
+            }
+        }
+    }
 
     // MARK: Initializers
 
@@ -294,13 +303,8 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
 
 //        textMessageButton = createButton(imageName:"message-active-wide",
 //                                                action:#selector(didPressTextMessage))
-        speakerPhoneButton = createButton(imageName:"audio-call-speaker-inactive",
-                                          action:#selector(didPressSpeakerphone))
-
-        // TODO new button icon
-        soundRouteButton = createButton(imageName:"audio_play_white_40",
-                                        action:#selector(didPressSoundRoute))
-
+        audioRouteButton = createButton(imageName:"audio-call-speaker-inactive",
+                                          action:#selector(didPressAudioRoute))
         hangUpButton = createButton(imageName:"hangup-active-wide",
                                     action:#selector(didPressHangup))
         audioModeMuteButton = createButton(imageName:"audio-call-mute-inactive",
@@ -316,17 +320,10 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
         setButtonSelectedImage(button: videoModeMuteButton, imageName: "video-mute-selected")
         setButtonSelectedImage(button: audioModeVideoButton, imageName: "audio-call-video-active")
         setButtonSelectedImage(button: videoModeVideoButton, imageName: "video-video-selected")
-        setButtonSelectedImage(button: speakerPhoneButton, imageName: "audio-call-speaker-active")
-
-        createOngoingCallView()
-    }
-
-    func createOngoingCallView() {
-
-        let soundRouteOrSpeakerphoneButton: UIButton = self.hasAlternateAudioRoutes ? soundRouteButton : speakerPhoneButton
+        setButtonSelectedImage(button: audioRouteButton, imageName: "audio-call-speaker-active")
 
         ongoingCallView = createContainerForCallControls(controlGroups : [
-            [audioModeMuteButton, soundRouteOrSpeakerphoneButton, audioModeVideoButton ],
+            [audioModeMuteButton, audioRouteButton, audioModeVideoButton ],
             [videoModeMuteButton, hangUpButton, videoModeVideoButton ]
         ])
     }
@@ -334,19 +331,21 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
     func didChangeAudioSession() {
         AssertIsOnMainThread()
 
-        let newHasAlternateAudioRoutes = callUIAdapter.audioService.hasAlternateAudioRoutes
-
-        guard newHasAlternateAudioRoutes != self.hasAlternateAudioRoutes else {
-            // no change
-            return
-        }
-
-        self.hasAlternateAudioRoutes = newHasAlternateAudioRoutes
-        createOngoingCallView()
+        self.hasAlternateAudioRoutes = callUIAdapter.audioService.hasAlternateAudioRoutes
     }
 
-    func didPressSoundRoute(sender button: UIButton) {
+    func presentAudioRoutePicker() {
         Logger.info("\(TAG) in \(#function)")
+        let actionSheetController = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+
+        let dismissAction = UIAlertAction(title:  CommonStrings.dismissActionText, style: .cancel, handler: nil)
+        actionSheetController.addAction(dismissAction)
+
+//        for route in self.callUIAdapater.audioService.availableRoutes {
+
+//    }
+
+        self.present(actionSheetController, animated: true)
     }
 
     func setButtonSelectedImage(button: UIButton, imageName: String) {
@@ -689,10 +688,17 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
         videoModeMuteButton.isSelected = call.isMuted
         audioModeVideoButton.isSelected = call.hasLocalVideo
         videoModeVideoButton.isSelected = call.hasLocalVideo
-        speakerPhoneButton.isSelected = call.isSpeakerphoneEnabled
+        audioRouteButton.isSelected = call.isSpeakerphoneEnabled
 
-        speakerPhoneButton.isHidden = self.hasAlternateAudioRoutes
-        soundRouteButton.isHidden = !self.hasAlternateAudioRoutes
+        if self.hasAlternateAudioRoutes {
+            // TODO proper image
+            Logger.info("\(TAG) in \(#function) setting alternate audio route image")
+            audioRouteButton.setImage(#imageLiteral(resourceName: "button_timer_white"), for: .normal)
+            audioRouteButton.setImage(#imageLiteral(resourceName: "button_settings_white"), for: .selected)
+        } else {
+            audioRouteButton.setImage(#imageLiteral(resourceName: "audio-call-speaker-inactive"), for: .normal)
+            audioRouteButton.setImage(#imageLiteral(resourceName: "audio-call-speaker-active"), for: .selected)
+        }
 
         // Show Incoming vs. Ongoing call controls
         let isRinging = callState == .localRinging
@@ -707,7 +713,7 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
 
         // Rework control state if local video is available.
         let hasLocalVideo = !localVideoView.isHidden
-        for subview in [speakerPhoneButton, audioModeMuteButton, audioModeVideoButton] {
+        for subview in [audioRouteButton, audioModeMuteButton, audioModeVideoButton] {
             subview?.isHidden = hasLocalVideo
         }
         for subview in [videoModeMuteButton, videoModeVideoButton] {
@@ -778,6 +784,16 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
             callUIAdapter.setIsMuted(call: call, isMuted: muteButton.isSelected)
         } else {
             Logger.warn("\(TAG) pressed mute, but call was unexpectedly nil")
+        }
+    }
+
+    func didPressAudioRoute(sender button: UIButton) {
+        Logger.info("\(TAG) called \(#function)")
+
+        if self.hasAlternateAudioRoutes {
+            presentAudioRoutePicker()
+        } else {
+            didPressSpeakerphone(sender: button)
         }
     }
 
