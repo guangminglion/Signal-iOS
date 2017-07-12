@@ -341,6 +341,7 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
         let dismissAction = UIAlertAction(title:  CommonStrings.dismissActionText, style: .cancel, handler: nil)
         actionSheetController.addAction(dismissAction)
 
+        // This seems like overreach. audioservice as property on CVC?
         for audioSource in self.callUIAdapter.audioService.availableOutputs {
             // TODO add image
             let routeAudioAction = UIAlertAction(title: audioSource.name, style: .default) { _ in
@@ -354,8 +355,10 @@ class CallViewController: UIViewController, CallObserver, CallServiceObserver, R
 
     func updateAudioOutput(audioSource: AudioSource) {
         Logger.info("\(TAG) in \(#function) with audioSource: \(audioSource)")
+        // This seems like overreach. audioservice as property on CVC?
+        self.callUIAdapter.audioService.setPreferredInput(audioSource: audioSource)
     }
-        
+
     func setButtonSelectedImage(button: UIButton, imageName: String) {
         let image = UIImage(named:imageName)
         assert(image != nil)

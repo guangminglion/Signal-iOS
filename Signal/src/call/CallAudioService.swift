@@ -8,12 +8,21 @@ import AVFoundation
 public let CallAudioServiceSessionChanged = Notification.Name("CallAudioServiceSessionChanged")
 
 struct AudioSource {
-    let name: String
+//    let name: String
     let image: UIImage
     let isCurrentRoute: Bool
-    
-    init(name: String, image: UIImage, isCurrentRoute: Bool) {
-        self.name = name
+    let portDescription: AVAudioSessionPortDescription
+
+//    init(name: String, image: UIImage, isCurrentRoute: Bool) {
+//        
+//    }
+//    
+    var name: String {
+        return portDescription.portName
+    }
+
+    init(portDescription: AVAudioSessionPortDescription, image: UIImage, isCurrentRoute: Bool) {
+        self.portDescription = portDescription
         self.image = image
         self.isCurrentRoute = isCurrentRoute
     }
@@ -324,7 +333,7 @@ struct AudioSource {
 
     // MARK - AudioSession MGM
     // TODO move this to CallAudioSession?
-    
+
     var hasAlternateAudioRoutes: Bool {
         let session = AVAudioSession.sharedInstance()
 
@@ -343,22 +352,38 @@ struct AudioSource {
 
         return false
     }
-    
+
     var availableOutputs: [AudioSource] {
         let session = AVAudioSession.sharedInstance()
         // guard let availableOutputs = session.outputDataSources else {
-        guard let availableOutputs = session.availableInputs else {
+
+        // Maybe... shows the bluetooth AND the receiver (but not speaker)
+        guard let avaoilableInputs = session.availableInputs else {
             // I'm not sure when this would happen.
             owsFail("No available inputs or inputs not ready")
             return []
         }
-        
-        Logger.info("\(TAG) in \(#function) availableOutputs: \(availableOutputs)")
-        return availableOutputs.map { output in
+
+        // NOPE. only shows the single active one. (e.g. blue tooth XOR receive)
+//        let availableOutputs = session.currentRoute.outputs
+
+        Logger.info("\(TAG) in \(#function) availableOutputs: \(avaoilableInputs)")
+        return avaoilableInputs.map { portDescription in
             // TODO get proper image
             // TODO set isCurrentRoute correctly
 //            return AudioSource(name: output.dataSourceName, image:#imageLiteral(resourceName: "button_phone_white"), isCurrentRoute: false)
-            return AudioSource(name: output.portName, image:#imageLiteral(resourceName: "button_phone_white"), isCurrentRoute: false)
+//            return AudioSource(name: output.portName, image:#imageLiteral(resourceName: "button_phone_white"), isCurrentRoute: false)
+
+            return AudioSource(portDescription: portDescription, image:#imageLiteral(resourceName: "button_phone_white"), isCurrentRoute: false)
+        }
+    }
+
+    public func setPreferredInput(audioSource: AudioSource) {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setPreferredInput(audioSource.portDescription)
+        } catch {
+            owsFail("\(TAG) failed with error: \(error)")
         }
     }
 
